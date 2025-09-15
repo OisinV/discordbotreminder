@@ -7,7 +7,7 @@ import asyncio
 import uuid
 from shared import reminder_tasks
 
-TOKEN = "MTQwNDgyMTU1NjIxNTAyNTc2NA.Gk6JXi.g8X25eTyb4uWep3DbWeFhta8IqGg64CrM9ptrM"
+TOKEN = "Insert discordtoken here"
 intents = discord.Intents.default()
 intents.message_content = True
 
