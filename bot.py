@@ -6,6 +6,21 @@ from commands import cancelreminder_command # Invite fo cancel
 import asyncio
 import uuid
 from shared import reminder_tasks
+from storage import load_data, add_reminder, get_due_reminders, remove_reminder, TIMEZONE
+from datetime import datetime, timedelta
+import logging
+
+data = load_data()
+
+@bot.event
+async def on_ready():
+    logging.info("Bot is online.")
+    # Check for missed reminders on startup
+    for reminder in get_due_reminders(data):
+        user = await bot.fetch_user(reminder["user_id"])
+        if user:
+            await user.send(f"⏰ Missed reminder while offline: {reminder['message']}")
+        remove_reminder(data, reminder)
 
 TOKEN = "Insert discordtoken here"
 intents = discord.Intents.default()
@@ -29,3 +44,4 @@ async def on_ready():
     print(f"Logged in as {client.user}")
 
 client.run(TOKEN)
+
