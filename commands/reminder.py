@@ -38,4 +38,74 @@ class Reminder(commands.Cog):
         )
 
     @app_commands.command(name="reminderlist", description="List your reminders (admins see all)")
-    async def reminderl
+    async def reminderlist(self, interaction: discord.Interaction):
+        user = interaction.user
+        guild_id = interaction.guild_id
+
+        if is_reminder_admin(data, guild_id, user):  # Admin/Mod
+            reminders = get_all_reminders(data, guild_id)
+            if not reminders:
+                await interaction.response.send_message("📭 No active reminders in this server.")
+                return
+            text = "\n".join(
+                f"[{i}] <@{r['user_id']}> — {r['message']} (⏰ {r['time']})"
+                for i, r in enumerate(reminders, start=1)
+            )
+
+            logger.info(
+                f"[GUILD {interaction.guild.name} ({guild_id})] "
+                f"{user} ({user.id}) listed ALL reminders ({len(reminders)})"
+            )
+
+            await interaction.response.send_message(f"📋 All reminders in this server:\n{text}")
+        else:  # Regular user
+            reminders = get_user_reminders(data, user.id, guild_id)
+            if not reminders:
+                await interaction.response.send_message("📭 You don’t have any active reminders.")
+                return
+            text = "\n".join(
+                f"[{i}] {r['message']} (⏰ {r['time']})"
+                for i, r in enumerate(reminders, start=1)
+            )
+
+            logger.info(
+                f"[GUILD {interaction.guild.name} ({guild_id})] "
+                f"{user} ({user.id}) listed THEIR reminders ({len(reminders)})"
+            )
+
+            await interaction.response.send_message(f"📋 Your reminders:\n{text}")
+
+    @app_commands.command(name="remindercancel", description="Cancel a reminder (admins can cancel any)")
+    async def remindercancel(self, interaction: discord.Interaction, index: int):
+        user = interaction.user
+        guild_id = interaction.guild_id
+
+        if is_reminder_admin(data, guild_id, user):  # Admin/Mod
+            reminders = get_all_reminders(data, guild_id)
+        else:  # User
+            reminders = get_user_reminders(data, user.id, guild_id)
+
+        if not reminders:
+            await interaction.response.send_message("❌ No reminders found.")
+            return
+
+        if index < 1 or index > len(reminders):
+            await interaction.response.send_message("⚠️ Invalid reminder index.")
+            return
+
+        reminder = reminders[index - 1]
+        remove_reminder(data, reminder)
+
+        logger.info(
+            f"[GUILD {interaction.guild.name} ({guild_id})] "
+            f"{user} ({user.id}) cancelled reminder '{reminder['message']}' "
+            f"(⏰ {reminder['time']}) from user {reminder['user_id']}"
+        )
+
+        await interaction.response.send_message(
+            f"✅ Reminder cancelled: {reminder['message']} (⏰ {reminder['time']})"
+        )
+
+
+async def setup(bot: commands.Bot):
+    await bot.add_cog(Reminder(bot))
