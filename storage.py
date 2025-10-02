@@ -19,9 +19,10 @@ def save_data(data):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
-def add_reminder(data, user_id: int, message: str, when: datetime):
+def add_reminder(data, user_id: int, guild_id: int, message: str, when: datetime):
     reminder = {
         "user_id": user_id,
+        "guild_id": guild_id,
         "message": message,
         "time": when.astimezone(TIMEZONE).isoformat()
     }
@@ -30,8 +31,9 @@ def add_reminder(data, user_id: int, message: str, when: datetime):
 
 
 def remove_reminder(data, reminder):
-    data["reminders"].remove(reminder)
-    save_data(data)
+    if reminder in data["reminders"]:
+        data["reminders"].remove(reminder)
+        save_data(data)
 
 
 def get_due_reminders(data):
@@ -45,3 +47,11 @@ def get_due_reminders(data):
         if rt <= now:
             due.append(r)
     return due
+
+
+def get_user_reminders(data, user_id: int, guild_id: int):
+    return [r for r in data["reminders"] if r["user_id"] == user_id and r["guild_id"] == guild_id]
+
+
+def get_all_reminders(data, guild_id: int):
+    return [r for r in data["reminders"] if r["guild_id"] == guild_id]
