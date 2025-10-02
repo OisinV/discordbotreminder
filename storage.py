@@ -11,7 +11,7 @@ def load_data():
     if DATA_FILE.exists():
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"reminders": [], "settings": {}}
+    return {"reminders": [], "settings": {}, "admins": {}}
 
 
 def save_data(data):
@@ -55,3 +55,33 @@ def get_user_reminders(data, user_id: int, guild_id: int):
 
 def get_all_reminders(data, guild_id: int):
     return [r for r in data["reminders"] if r["guild_id"] == guild_id]
+
+
+# --- Admin system ---
+def add_admin(data, guild_id: int, target_id: int, kind: str):
+    """kind = 'user' or 'role'"""
+    guild_admins = data.setdefault("admins", {}).setdefault(str(guild_id), {"users": [], "roles": []})
+    if target_id not in guild_admins[kind + "s"]:
+        guild_admins[kind + "s"].append(target_id)
+    save_data(data)
+
+
+def remove_admin(data, guild_id: int, target_id: int, kind: str):
+    guild_admins = data.get("admins", {}).get(str(guild_id), {"users": [], "roles": []})
+    if target_id in guild_admins.get(kind + "s", []):
+        guild_admins[kind + "s"].remove(target_id)
+    save_data(data)
+
+
+def list_admins(data, guild_id: int):
+    return data.get("admins", {}).get(str(guild_id), {"users": [], "roles": []})
+
+
+def is_admin(data, guild_id: int, member):
+    guild_admins = list_admins(data, guild_id)
+    if member.id in guild_admins["users"]:
+        return True
+    for role in member.roles:
+        if role.id in guild_admins["roles"]:
+            return True
+    return member.guild_permissions.administrator
