@@ -22,19 +22,62 @@ class Reminder(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @app_commands.command(name="reminder", description="Set a reminder in X minutes")
-    async def reminder(self, interaction: discord.Interaction, minutes: int, message: str):
+    @app_commands.command(
+        name="reminder",
+        description="Set a reminder"
+    )
+    @app_commands.describe(
+        minutes="In how many minutes the reminder should fire",
+        message="Reminder text",
+        delivery="Delivery method: dm / channel / forum / both"
+    )
+    @app_commands.choices(
+        delivery=[
+            app_commands.Choice(name="DM only", value="dm"),
+            app_commands.Choice(name="Channel", value="channel"),
+            app_commands.Choice(name="Forum", value="forum"),
+            app_commands.Choice(name="DM + Channel", value="both"),
+        ]
+    )
+    async def reminder(
+        self,
+        interaction: discord.Interaction,
+        minutes: int,
+        message: str,
+        delivery: app_commands.Choice[str] = None
+    ):
         when = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
-        add_reminder(data, interaction.user.id, interaction.guild_id, message, when)
+
+        # Determine delivery mode
+        delivery_mode = delivery.value if delivery else "dm"
+        channel_id = None
+
+        # Automatically assign channel_id if needed
+        if delivery_mode in ("channel", "forum", "both"):
+            channel_id = interaction.channel_id
+
+        add_reminder(
+            data,
+            user_id=interaction.user.id,
+            guild_id=interaction.guild_id,
+            message=message,
+            when=when,
+        )
+        # Save delivery info inside the last added reminder
+        data["reminders"][-1]["delivery"] = delivery_mode
+        if channel_id:
+            data["reminders"][-1]["channel_id"] = channel_id
 
         logger.info(
             f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
             f"{interaction.user} ({interaction.user.id}) set reminder '{message}' "
-            f"for {when.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+            f"for {when.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+            f"with delivery='{delivery_mode}' channel_id={channel_id}"
         )
 
         await interaction.response.send_message(
-            f"⏰ Reminder set for {when.strftime('%Y-%m-%d %H:%M:%S %Z')}"
+            f"⏰ Reminder set for {when.strftime('%Y-%m-%d %H:%M:%S %Z')} "
+            f"(Delivery: {delivery_mode})"
         )
 
     @app_commands.command(name="reminderlist", description="List your reminders (admins see all)")
@@ -48,7 +91,7 @@ class Reminder(commands.Cog):
                 await interaction.response.send_message("📭 No active reminders in this server.")
                 return
             text = "\n".join(
-                f"[{i}] <@{r['user_id']}> — {r['message']} (⏰ {r['time']})"
+                f"[{i}] <@{r['user_id']}> — {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
                 for i, r in enumerate(reminders, start=1)
             )
 
@@ -64,7 +107,7 @@ class Reminder(commands.Cog):
                 await interaction.response.send_message("📭 You don’t have any active reminders.")
                 return
             text = "\n".join(
-                f"[{i}] {r['message']} (⏰ {r['time']})"
+                f"[{i}] {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
                 for i, r in enumerate(reminders, start=1)
             )
 
