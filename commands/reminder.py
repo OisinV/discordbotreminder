@@ -11,7 +11,8 @@ from storage import (
     remove_reminder,
     get_all_reminders,
     TIMEZONE,
-    is_reminder_admin
+    is_reminder_admin,
+    is_user_manager
 )
 
 data = load_data()
@@ -27,9 +28,9 @@ class Reminder(commands.Cog):
         description="Set a reminder"
     )
     @app_commands.describe(
-        minutes="In how many minutes the reminder should fire",
+        minutes="Minutes until the reminder",
         message="Reminder text",
-        delivery="Delivery method: dm / channel / forum / both"
+        delivery="Delivery: dm / channel / forum / both"
     )
     @app_commands.choices(
         delivery=[
@@ -48,31 +49,18 @@ class Reminder(commands.Cog):
     ):
         when = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
 
-        # Determine delivery mode
         delivery_mode = delivery.value if delivery else "dm"
-        channel_id = None
+        channel_id = interaction.channel_id if delivery_mode in ("channel", "forum", "both") else None
 
-        # Automatically assign channel_id if needed
-        if delivery_mode in ("channel", "forum", "both"):
-            channel_id = interaction.channel_id
-
-        add_reminder(
-            data,
-            user_id=interaction.user.id,
-            guild_id=interaction.guild_id,
-            message=message,
-            when=when,
-        )
-        # Save delivery info inside the last added reminder
+        add_reminder(data, interaction.user.id, interaction.guild_id, message, when)
         data["reminders"][-1]["delivery"] = delivery_mode
         if channel_id:
             data["reminders"][-1]["channel_id"] = channel_id
 
         logger.info(
             f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} ({interaction.user.id}) set reminder '{message}' "
-            f"for {when.strftime('%Y-%m-%d %H:%M:%S %Z')} "
-            f"with delivery='{delivery_mode}' channel_id={channel_id}"
+            f"{interaction.user} set reminder '{message}' "
+            f"(⏰ {when.strftime('%Y-%m-%d %H:%M:%S %Z')}, delivery={delivery_mode}, channel_id={channel_id})"
         )
 
         await interaction.response.send_message(
@@ -80,52 +68,48 @@ class Reminder(commands.Cog):
             f"(Delivery: {delivery_mode})"
         )
 
-    @app_commands.command(name="reminderlist", description="List your reminders (admins see all)")
+    @app_commands.command(name="reminderlist", description="List reminders")
     async def reminderlist(self, interaction: discord.Interaction):
         user = interaction.user
         guild_id = interaction.guild_id
 
-        if is_reminder_admin(data, guild_id, user):  # Admin/Mod
+        if is_reminder_admin(data, guild_id, user):
             reminders = get_all_reminders(data, guild_id)
-            if not reminders:
-                await interaction.response.send_message("📭 No active reminders in this server.")
-                return
             text = "\n".join(
                 f"[{i}] <@{r['user_id']}> — {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
                 for i, r in enumerate(reminders, start=1)
             )
-
-            logger.info(
-                f"[GUILD {interaction.guild.name} ({guild_id})] "
-                f"{user} ({user.id}) listed ALL reminders ({len(reminders)})"
-            )
-
-            await interaction.response.send_message(f"📋 All reminders in this server:\n{text}")
-        else:  # Regular user
+            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed ALL reminders")
+        elif is_user_manager(data, guild_id, user):
             reminders = get_user_reminders(data, user.id, guild_id)
-            if not reminders:
-                await interaction.response.send_message("📭 You don’t have any active reminders.")
-                return
             text = "\n".join(
                 f"[{i}] {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
                 for i, r in enumerate(reminders, start=1)
             )
-
-            logger.info(
-                f"[GUILD {interaction.guild.name} ({guild_id})] "
-                f"{user} ({user.id}) listed THEIR reminders ({len(reminders)})"
+            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed THEIR reminders (User Manager)")
+        else:
+            reminders = get_user_reminders(data, user.id, guild_id)
+            text = "\n".join(
+                f"[{i}] {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
+                for i, r in enumerate(reminders, start=1)
             )
+            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed THEIR reminders")
 
-            await interaction.response.send_message(f"📋 Your reminders:\n{text}")
+        if not reminders:
+            await interaction.response.send_message("📭 No reminders found.")
+        else:
+            await interaction.response.send_message(f"📋 Reminders:\n{text}")
 
-    @app_commands.command(name="remindercancel", description="Cancel a reminder (admins can cancel any)")
+    @app_commands.command(name="remindercancel", description="Cancel a reminder")
     async def remindercancel(self, interaction: discord.Interaction, index: int):
         user = interaction.user
         guild_id = interaction.guild_id
 
-        if is_reminder_admin(data, guild_id, user):  # Admin/Mod
+        if is_reminder_admin(data, guild_id, user):
             reminders = get_all_reminders(data, guild_id)
-        else:  # User
+        elif is_user_manager(data, guild_id, user):
+            reminders = get_user_reminders(data, user.id, guild_id)
+        else:
             reminders = get_user_reminders(data, user.id, guild_id)
 
         if not reminders:
@@ -141,7 +125,7 @@ class Reminder(commands.Cog):
 
         logger.info(
             f"[GUILD {interaction.guild.name} ({guild_id})] "
-            f"{user} ({user.id}) cancelled reminder '{reminder['message']}' "
+            f"{user} cancelled reminder '{reminder['message']}' "
             f"(⏰ {reminder['time']}) from user {reminder['user_id']}"
         )
 
