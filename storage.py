@@ -11,13 +11,15 @@ def load_data():
     if DATA_FILE.exists():
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"reminders": [], "settings": {}, "admins": {}}
+    return {"reminders": [], "settings": {}}
 
 
 def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
+
+# ---------------- Reminders ---------------- #
 
 def add_reminder(data, user_id: int, guild_id: int, message: str, when: datetime):
     reminder = {
@@ -57,31 +59,46 @@ def get_all_reminders(data, guild_id: int):
     return [r for r in data["reminders"] if r["guild_id"] == guild_id]
 
 
-# --- Admin system ---
+# ---------------- Admins ---------------- #
+
+def _ensure_guild_settings(data, guild_id: int):
+    if str(guild_id) not in data["settings"]:
+        data["settings"][str(guild_id)] = {"admins": {"users": [], "roles": []}}
+
+
 def add_admin(data, guild_id: int, target_id: int, kind: str):
     """kind = 'user' or 'role'"""
-    guild_admins = data.setdefault("admins", {}).setdefault(str(guild_id), {"users": [], "roles": []})
-    if target_id not in guild_admins[kind + "s"]:
-        guild_admins[kind + "s"].append(target_id)
-    save_data(data)
+    _ensure_guild_settings(data, guild_id)
+    admins = data["settings"][str(guild_id)]["admins"][f"{kind}s"]
+    if target_id not in admins:
+        admins.append(target_id)
+        save_data(data)
 
 
 def remove_admin(data, guild_id: int, target_id: int, kind: str):
-    guild_admins = data.get("admins", {}).get(str(guild_id), {"users": [], "roles": []})
-    if target_id in guild_admins.get(kind + "s", []):
-        guild_admins[kind + "s"].remove(target_id)
-    save_data(data)
+    _ensure_guild_settings(data, guild_id)
+    admins = data["settings"][str(guild_id)]["admins"][f"{kind}s"]
+    if target_id in admins:
+        admins.remove(target_id)
+        save_data(data)
 
 
 def list_admins(data, guild_id: int):
-    return data.get("admins", {}).get(str(guild_id), {"users": [], "roles": []})
+    _ensure_guild_settings(data, guild_id)
+    return data["settings"][str(guild_id)]["admins"]
 
 
-def is_admin(data, guild_id: int, member):
-    guild_admins = list_admins(data, guild_id)
+def is_reminder_admin(data, guild_id: int, member) -> bool:
+    """Check if a member is a reminder admin (by user or role)."""
+    _ensure_guild_settings(data, guild_id)
+    guild_admins = data["settings"][str(guild_id)]["admins"]
+
+    # User match
     if member.id in guild_admins["users"]:
         return True
-    for role in member.roles:
-        if role.id in guild_admins["roles"]:
-            return True
-    return member.guild_permissions.administrator
+
+    # Role match
+    if any(role.id in guild_admins["roles"] for role in member.roles):
+        return True
+
+    return False
