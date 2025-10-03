@@ -1,87 +1,38 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-import logging
+from storage import load_data, save_data, set_guild_default_delivery
 
-from storage import (
-    add_admin, remove_admin, list_admins, load_data,
-    data, add_admin, remove_admin
-)
-
-logger = logging.getLogger("bot")
 data = load_data()
-
-
-def require_admin_manager(interaction: discord.Interaction) -> bool:
-    from storage import is_reminder_admin
-    return is_reminder_admin(data, interaction.guild_id, interaction.user)
-
 
 class ReminderAdmin(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    group = app_commands.Group(
-        name="reminderadmin",
-        description="Admin Manager commands (full privileges)"
+    @app_commands.command(
+        name="setdefaultdelivery",
+        description="Set default reminder delivery for the guild (for User Managers)"
     )
+    @app_commands.choices(
+        delivery=[
+            app_commands.Choice(name="DM only", value="dm"),
+            app_commands.Choice(name="Channel", value="channel"),
+            app_commands.Choice(name="Forum", value="forum"),
+            app_commands.Choice(name="DM + Channel", value="both"),
+        ]
+    )
+    async def setdefaultdelivery(self, interaction: discord.Interaction, delivery: app_commands.Choice[str]):
+        from storage import is_reminder_admin
 
-    @group.command(name="adduser", description="Add a user as admin manager")
-    @app_commands.check(require_admin_manager)
-    async def adduser(self, interaction: discord.Interaction, user: discord.User):
-        add_admin(data, interaction.guild_id, user.id, "user")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} added USER {user} as Admin Manager"
-        )
-        await interaction.response.send_message(f"✅ Added {user.mention} as Admin Manager")
+        user = interaction.user
+        guild_id = interaction.guild_id
 
-    @group.command(name="addrole", description="Add a role as admin manager")
-    @app_commands.check(require_admin_manager)
-    async def addrole(self, interaction: discord.Interaction, role: discord.Role):
-        add_admin(data, interaction.guild_id, role.id, "role")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} added ROLE {role} as Admin Manager"
-        )
-        await interaction.response.send_message(f"✅ Added role {role.mention} as Admin Manager")
+        if not is_reminder_admin(data, guild_id, user):
+            await interaction.response.send_message("❌ You do not have permission to set the default delivery.")
+            return
 
-    @group.command(name="removeuser", description="Remove a user from admin manager")
-    @app_commands.check(require_admin_manager)
-    async def removeuser(self, interaction: discord.Interaction, user: discord.User):
-        remove_admin(data, interaction.guild_id, user.id, "user")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} removed USER {user} from Admin Manager"
-        )
-        await interaction.response.send_message(f"❌ Removed {user.mention} from Admin Manager")
-
-    @group.command(name="removerole", description="Remove a role from admin manager")
-    @app_commands.check(require_admin_manager)
-    async def removerole(self, interaction: discord.Interaction, role: discord.Role):
-        remove_admin(data, interaction.guild_id, role.id, "role")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} removed ROLE {role} from Admin Manager"
-        )
-        await interaction.response.send_message(f"❌ Removed role {role.mention} from Admin Manager")
-
-    @group.command(name="list", description="List admin managers for this server")
-    @app_commands.check(require_admin_manager)
-    async def list(self, interaction: discord.Interaction):
-        admins = list_admins(data, interaction.guild_id)
-        users = ", ".join(f"<@{uid}>" for uid in admins["users"]) or "None"
-        roles = ", ".join(f"<@&{rid}>" for rid in admins["roles"]) or "None"
-
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} requested Admin Manager list"
-        )
-
-        await interaction.response.send_message(
-            f"👑 Admin Managers:\n**Users:** {users}\n**Roles:** {roles}"
-        )
-
+        set_guild_default_delivery(data, guild_id, delivery.value)
+        await interaction.response.send_message(f"✅ Default delivery set to **{delivery.name}** for this guild.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ReminderAdmin(bot))
