@@ -6,7 +6,6 @@ from storage import (
     add_admin_manager,
     remove_admin_manager,
     is_admin_manager,
-    is_user_manager,
     get_guild_settings
 )
 from bot import data
@@ -19,7 +18,7 @@ class UserManager(commands.Cog):
     @commands.command(name="addusermanager")
     async def add_user_manager_cmd(self, ctx, target: discord.Member | discord.Role):
         """Add a user or role as User Manager (Admins only)."""
-        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+        if not is_admin_manager(data, ctx.guild.id, ctx.author):
             return await ctx.send("❌ You don’t have permission to do this.")
 
         add_user_manager(data, ctx.guild.id, target.id)
@@ -29,7 +28,7 @@ class UserManager(commands.Cog):
     @commands.command(name="removeusermanager")
     async def remove_user_manager_cmd(self, ctx, target: discord.Member | discord.Role):
         """Remove a user or role from User Managers (Admins only)."""
-        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+        if not is_admin_manager(data, ctx.guild.id, ctx.author):
             return await ctx.send("❌ You don’t have permission to do this.")
 
         remove_user_manager(data, ctx.guild.id, target.id)
@@ -39,7 +38,7 @@ class UserManager(commands.Cog):
     @commands.command(name="addadminmanager")
     async def add_admin_manager_cmd(self, ctx, target: discord.Member | discord.Role):
         """Add a user or role as Admin Manager (Admins only)."""
-        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+        if not is_admin_manager(data, ctx.guild.id, ctx.author):
             return await ctx.send("❌ You don’t have permission to do this.")
 
         add_admin_manager(data, ctx.guild.id, target.id)
@@ -49,7 +48,7 @@ class UserManager(commands.Cog):
     @commands.command(name="removeadminmanager")
     async def remove_admin_manager_cmd(self, ctx, target: discord.Member | discord.Role):
         """Remove a user or role from Admin Managers (Admins only)."""
-        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+        if not is_admin_manager(data, ctx.guild.id, ctx.author):
             return await ctx.send("❌ You don’t have permission to do this.")
 
         remove_admin_manager(data, ctx.guild.id, target.id)
