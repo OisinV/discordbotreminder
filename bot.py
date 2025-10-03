@@ -137,7 +137,6 @@ async def on_ready():
 async def load_commands():
     await bot.load_extension("commands.reminder")
     await bot.load_extension("commands.reminderadmin")
-    await bot.load_extension("commands.usermanager")
     await bot.load_extension("commands.testmsg")
 
 
@@ -149,4 +148,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
