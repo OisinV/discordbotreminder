@@ -21,8 +21,6 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and ha
 - Missed reminders get delivered once the bot is back online  
 - Guild-separated data for privacy
 
-If you have any extra suggestions, please suggest them in discussions!  
-
 ---
 
 ### Instructions
