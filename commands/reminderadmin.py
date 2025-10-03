@@ -1,16 +1,17 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, Union
+from typing import Union
 from storage import (
     load_data,
     save_data,
     is_reminder_admin,
     is_user_manager,
-    set_guild_default_delivery,
+    set_guild_default_delivery
 )
 
 data = load_data()
+
 
 class ReminderAdmin(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -23,10 +24,9 @@ class ReminderAdmin(commands.Cog):
     def check_user_manager_permission(self, user: discord.User, guild_id: int):
         return is_reminder_admin(data, guild_id, user) or is_user_manager(data, guild_id, user)
 
-    # --- Admin Commands ---
+    # --- Admin Manager Commands ---
     @app_commands.command(name="addadmin", description="Add a user or role as Admin Manager")
-    async def addadmin(self, interaction: discord.Interaction,
-                       target: Union[discord.User, discord.Role]):
+    async def addadmin(self, interaction: discord.Interaction, target: Union[discord.User, discord.Role]):
         if not self.check_admin_permission(interaction.user, interaction.guild_id):
             await interaction.response.send_message("❌ You do not have permission.")
             return
@@ -39,7 +39,7 @@ class ReminderAdmin(commands.Cog):
                 return
             admins.append(str(target.id))
             await interaction.response.send_message(f"✅ {target} added as Admin.")
-        else:  # Role
+        else:
             admin_roles = guild.setdefault("admin_roles", [])
             if str(target.id) in admin_roles:
                 await interaction.response.send_message("❌ Role is already an Admin role.")
@@ -49,8 +49,7 @@ class ReminderAdmin(commands.Cog):
         save_data(data)
 
     @app_commands.command(name="removeadmin", description="Remove a user or role from Admin Managers")
-    async def removeadmin(self, interaction: discord.Interaction,
-                          target: Union[discord.User, discord.Role]):
+    async def removeadmin(self, interaction: discord.Interaction, target: Union[discord.User, discord.Role]):
         if not self.check_admin_permission(interaction.user, interaction.guild_id):
             await interaction.response.send_message("❌ You do not have permission.")
             return
@@ -63,7 +62,7 @@ class ReminderAdmin(commands.Cog):
                 return
             admins.remove(str(target.id))
             await interaction.response.send_message(f"✅ {target} removed from Admins.")
-        else:  # Role
+        else:
             admin_roles = guild.setdefault("admin_roles", [])
             if str(target.id) not in admin_roles:
                 await interaction.response.send_message("❌ Role is not an Admin role.")
@@ -77,26 +76,18 @@ class ReminderAdmin(commands.Cog):
         guild = data["guilds"].get(str(interaction.guild_id), {})
         users = guild.get("admins", [])
         roles = guild.get("admin_roles", [])
-        user_mentions = []
-        for u in users:
-            member = interaction.guild.get_member(int(u))
-            if member:
-                user_mentions.append(member.mention)
-        role_mentions = []
-        for r in roles:
-            role = interaction.guild.get_role(int(r))
-            if role:
-                role_mentions.append(role.mention)
+        user_mentions = [interaction.guild.get_member(int(u)).mention for u in users if interaction.guild.get_member(int(u))]
+        role_mentions = [interaction.guild.get_role(int(r)).mention for r in roles if interaction.guild.get_role(int(r))]
         text = f"Admins: {', '.join(user_mentions) if user_mentions else 'None'}\nRoles: {', '.join(role_mentions) if role_mentions else 'None'}"
         await interaction.response.send_message(text)
 
     # --- User Manager Commands ---
     @app_commands.command(name="addusermanager", description="Add a user or role as User Manager")
-    async def addusermanager(self, interaction: discord.Interaction,
-                             target: Union[discord.User, discord.Role]):
+    async def addusermanager(self, interaction: discord.Interaction, target: Union[discord.User, discord.Role]):
         if not self.check_admin_permission(interaction.user, interaction.guild_id):
             await interaction.response.send_message("❌ You do not have permission.")
             return
+
         guild = data["guilds"].setdefault(str(interaction.guild_id), {})
         if isinstance(target, discord.User):
             managers = guild.setdefault("user_managers", [])
@@ -105,7 +96,7 @@ class ReminderAdmin(commands.Cog):
                 return
             managers.append(str(target.id))
             await interaction.response.send_message(f"✅ {target} added as User Manager.")
-        else:  # Role
+        else:
             manager_roles = guild.setdefault("user_manager_roles", [])
             if str(target.id) in manager_roles:
                 await interaction.response.send_message("❌ Role is already a User Manager role.")
@@ -115,11 +106,11 @@ class ReminderAdmin(commands.Cog):
         save_data(data)
 
     @app_commands.command(name="removeusermanager", description="Remove a user or role from User Managers")
-    async def removeusermanager(self, interaction: discord.Interaction,
-                                target: Union[discord.User, discord.Role]):
+    async def removeusermanager(self, interaction: discord.Interaction, target: Union[discord.User, discord.Role]):
         if not self.check_admin_permission(interaction.user, interaction.guild_id):
             await interaction.response.send_message("❌ You do not have permission.")
             return
+
         guild = data["guilds"].setdefault(str(interaction.guild_id), {})
         if isinstance(target, discord.User):
             managers = guild.setdefault("user_managers", [])
@@ -128,7 +119,7 @@ class ReminderAdmin(commands.Cog):
                 return
             managers.remove(str(target.id))
             await interaction.response.send_message(f"✅ {target} removed from User Managers.")
-        else:  # Role
+        else:
             manager_roles = guild.setdefault("user_manager_roles", [])
             if str(target.id) not in manager_roles:
                 await interaction.response.send_message("❌ Role is not a User Manager role.")
@@ -142,24 +133,13 @@ class ReminderAdmin(commands.Cog):
         guild = data["guilds"].get(str(interaction.guild_id), {})
         users = guild.get("user_managers", [])
         roles = guild.get("user_manager_roles", [])
-        user_mentions = []
-        for u in users:
-            member = interaction.guild.get_member(int(u))
-            if member:
-                user_mentions.append(member.mention)
-        role_mentions = []
-        for r in roles:
-            role = interaction.guild.get_role(int(r))
-            if role:
-                role_mentions.append(role.mention)
+        user_mentions = [interaction.guild.get_member(int(u)).mention for u in users if interaction.guild.get_member(int(u))]
+        role_mentions = [interaction.guild.get_role(int(r)).mention for r in roles if interaction.guild.get_role(int(r))]
         text = f"User Managers: {', '.join(user_mentions) if user_mentions else 'None'}\nRoles: {', '.join(role_mentions) if role_mentions else 'None'}"
         await interaction.response.send_message(text)
 
     # --- Guild Default Delivery ---
-    @app_commands.command(
-        name="setdefaultdelivery",
-        description="Set default reminder delivery for the guild (toggleable for User Managers)"
-    )
+    @app_commands.command(name="setdefaultdelivery", description="Set default reminder delivery for the guild (toggleable for User Managers)")
     @app_commands.choices(
         delivery=[
             app_commands.Choice(name="DM only", value="dm"),
@@ -168,13 +148,14 @@ class ReminderAdmin(commands.Cog):
             app_commands.Choice(name="DM + Channel", value="both"),
         ]
     )
-    async def setdefaultdelivery(self, interaction: discord.Interaction,
-                                 delivery: app_commands.Choice[str]):
+    async def setdefaultdelivery(self, interaction: discord.Interaction, delivery: app_commands.Choice[str]):
         if not self.check_user_manager_permission(interaction.user, interaction.guild_id):
             await interaction.response.send_message("❌ You do not have permission to set the default delivery.")
             return
+
         set_guild_default_delivery(data, interaction.guild_id, delivery.value)
         await interaction.response.send_message(f"✅ Default delivery set to **{delivery.name}** for this guild.")
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(ReminderAdmin(bot))
