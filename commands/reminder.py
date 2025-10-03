@@ -1,6 +1,6 @@
 import discord
 from discord import app_commands
-from discord.ext import commands, tasks
+from discord.ext import commands
 from datetime import datetime, timedelta
 import logging
 
@@ -10,6 +10,8 @@ from storage import (
     get_user_reminders,
     remove_reminder,
     get_all_reminders,
+    edit_reminder,
+    get_reminder_by_index,
     TIMEZONE,
     is_reminder_admin,
     is_user_manager,
@@ -24,7 +26,7 @@ class Reminder(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    # --- Set Reminder ---
+    # --- /reminder command ---
     @app_commands.command(
         name="reminder",
         description="Set a reminder"
@@ -84,19 +86,17 @@ class Reminder(commands.Cog):
             f"(Delivery: {delivery_mode})"
         )
 
-    # --- Reminder List ---
+    # --- /reminderlist command ---
     @app_commands.command(
         name="reminderlist",
-        description="List reminders in this guild"
+        description="List reminders for yourself (or others if you have permission)"
     )
-    async def reminderlist(self, interaction: discord.Interaction):
+    async def reminderlist(self, interaction: discord.Interaction, page: int = 1):
         guild_id = interaction.guild_id
         user = interaction.user
 
-        # Determine visibility
-        if is_reminder_admin(data, guild_id, user):
-            reminders = get_all_reminders(data, guild_id)
-        elif is_user_manager(data, guild_id, user):
+        # Determine which reminders user can see
+        if is_reminder_admin(data, guild_id, user) or is_user_manager(data, guild_id, user):
             reminders = get_all_reminders(data, guild_id)
         else:
             reminders = get_user_reminders(data, user.id, guild_id)
@@ -105,102 +105,50 @@ class Reminder(commands.Cog):
             await interaction.response.send_message("No reminders found.")
             return
 
-        # Pagination embed
-        embeds = []
-        for i in range(0, len(reminders), 10):
-            chunk = reminders[i:i + 10]
-            description = ""
-            for r in chunk:
-                creator = f"<@{r['user_id']}>"
-                delivery = r.get("delivery", "dm")
-                channel = f"<#{r['channel_id']}>" if "channel_id" in r else "N/A"
-                due_time = r["time"]
-                description += f"**{creator}** | {due_time} | Delivery: {delivery} | Channel: {channel}\nMessage: {r['message']}\n\n"
-            embed = discord.Embed(
-                title=f"Reminders {i + 1}-{i + len(chunk)}",
-                description=description,
-                color=discord.Color.blue()
-            )
-            embeds.append(embed)
+        # Pagination
+        per_page = 5
+        max_pages = (len(reminders) + per_page - 1) // per_page
+        if page < 1 or page > max_pages:
+            await interaction.response.send_message(f"Invalid page. Must be 1-{max_pages}.")
+            return
 
-        # Send first page
-        msg = await interaction.response.send_message(embed=embeds[0])
-        # Add pagination if multiple embeds
-        if len(embeds) > 1:
-            msg = await interaction.original_response()
-            await msg.add_reaction("◀️")
-            await msg.add_reaction("▶️")
+        start = (page - 1) * per_page
+        end = start + per_page
+        text = ""
+        for i, r in enumerate(reminders[start:end], start=start + 1):
+            text += f"**{i}.** {r['message']} (⏰ {r['time']}, delivery={r.get('delivery','dm')})\n"
 
-            current = 0
+        await interaction.response.send_message(f"Reminders (Page {page}/{max_pages}):\n{text}")
 
-            def check(reaction, user_react):
-                return user_react == interaction.user and str(reaction.emoji) in ["◀️", "▶️"] and reaction.message.id == msg.id
-
-            while True:
-                try:
-                    reaction, user_react = await self.bot.wait_for("reaction_add", timeout=60.0, check=check)
-                    if str(reaction.emoji) == "▶️" and current < len(embeds) - 1:
-                        current += 1
-                        await msg.edit(embed=embeds[current])
-                    elif str(reaction.emoji) == "◀️" and current > 0:
-                        current -= 1
-                        await msg.edit(embed=embeds[current])
-                    await msg.remove_reaction(reaction, user_react)
-                except asyncio.TimeoutError:
-                    break
-
-    # --- Reminder Edit ---
+    # --- /reminderedit command ---
     @app_commands.command(
         name="reminderedit",
         description="Edit an existing reminder"
     )
     @app_commands.describe(
-        index="Index of the reminder to edit (from /reminderlist page)",
+        index="Reminder index from /reminderlist",
         message="New message (optional)",
-        minutes="New minutes until reminder (optional)",
-        delivery="New delivery mode (optional)"
+        minutes="New minutes until reminder (optional)"
     )
-    @app_commands.choices(
-        delivery=[
-            app_commands.Choice(name="DM only", value="dm"),
-            app_commands.Choice(name="Channel", value="channel"),
-            app_commands.Choice(name="Forum", value="forum"),
-            app_commands.Choice(name="DM + Channel", value="both"),
-        ]
-    )
-    async def reminderedit(
-        self,
-        interaction: discord.Interaction,
-        index: int,
-        message: Optional[str] = None,
-        minutes: Optional[int] = None,
-        delivery: Optional[app_commands.Choice[str]] = None
-    ):
+    async def reminderedit(self, interaction: discord.Interaction, index: int, message: str = None, minutes: int = None):
         guild_id = interaction.guild_id
         user = interaction.user
 
-        # Get reminders visible to user
+        # Determine which reminders user can edit
         if is_reminder_admin(data, guild_id, user) or is_user_manager(data, guild_id, user):
-            reminders = get_all_reminders(data, guild_id)
+            reminder_obj = get_reminder_by_index(data, guild_id, index)
         else:
-            reminders = get_user_reminders(data, user.id, guild_id)
+            reminder_obj = get_reminder_by_index(data, guild_id, index, user)
 
-        if index < 1 or index > len(reminders):
-            await interaction.response.send_message("❌ Invalid reminder index.")
+        if not reminder_obj:
+            await interaction.response.send_message("❌ Reminder not found or you do not have permission.")
             return
 
-        r = reminders[index - 1]
-        if message:
-            r["message"] = message
-        if minutes is not None:
-            new_time = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
-            r["time"] = new_time.strftime("%Y-%m-%d %H:%M:%S")
-        if delivery:
-            r["delivery"] = delivery.value
+        new_time = datetime.now(TIMEZONE) + timedelta(minutes=minutes) if minutes else None
+        edit_reminder(data, reminder_obj, message=message, new_time=new_time)
 
-        from storage import save_data
-        save_data(data)
         await interaction.response.send_message(f"✅ Reminder updated successfully.")
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Reminder(bot))
