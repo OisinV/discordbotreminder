@@ -59,7 +59,7 @@ Please keep in mind this branch is experimental, so features may change quickly.
 
 ## 🔹 High Priority
 - [ ] **Default Delivery Mode (Guild Setting)**  
-  - Toggleable by **User Managers**  
+  - Toggleable for **User Managers**  
   - Used when `/reminder` is called without specifying delivery  
 
 - [ ] **Improved Reminder Listing**  
