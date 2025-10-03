@@ -12,12 +12,12 @@ from storage import (
     get_all_reminders,
     TIMEZONE,
     is_reminder_admin,
-    is_user_manager
+    is_user_manager,
+    get_guild_default_delivery
 )
 
 data = load_data()
 logger = logging.getLogger("bot")
-
 
 class Reminder(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -47,19 +47,33 @@ class Reminder(commands.Cog):
         message: str,
         delivery: app_commands.Choice[str] = None
     ):
-        when = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
+        guild_id = interaction.guild_id
+        user = interaction.user
 
-        delivery_mode = delivery.value if delivery else "dm"
+        # Determine delivery
+        if delivery:
+            delivery_mode = delivery.value
+        else:
+            default = get_guild_default_delivery(data, guild_id)
+            if default:
+                delivery_mode = default
+            else:
+                await interaction.response.send_message(
+                    "❌ Please specify a delivery mode or set a guild default."
+                )
+                return
+
+        when = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
         channel_id = interaction.channel_id if delivery_mode in ("channel", "forum", "both") else None
 
-        add_reminder(data, interaction.user.id, interaction.guild_id, message, when)
-        data["reminders"][-1]["delivery"] = delivery_mode
+        reminder_obj = add_reminder(data, user.id, guild_id, message, when)
+        reminder_obj["delivery"] = delivery_mode
         if channel_id:
-            data["reminders"][-1]["channel_id"] = channel_id
+            reminder_obj["channel_id"] = channel_id
 
         logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} set reminder '{message}' "
+            f"[GUILD {interaction.guild.name} ({guild_id})] "
+            f"{user} set reminder '{message}' "
             f"(⏰ {when.strftime('%Y-%m-%d %H:%M:%S %Z')}, delivery={delivery_mode}, channel_id={channel_id})"
         )
 
@@ -67,72 +81,6 @@ class Reminder(commands.Cog):
             f"⏰ Reminder set for {when.strftime('%Y-%m-%d %H:%M:%S %Z')} "
             f"(Delivery: {delivery_mode})"
         )
-
-    @app_commands.command(name="reminderlist", description="List reminders")
-    async def reminderlist(self, interaction: discord.Interaction):
-        user = interaction.user
-        guild_id = interaction.guild_id
-
-        if is_reminder_admin(data, guild_id, user):
-            reminders = get_all_reminders(data, guild_id)
-            text = "\n".join(
-                f"[{i}] <@{r['user_id']}> — {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
-                for i, r in enumerate(reminders, start=1)
-            )
-            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed ALL reminders")
-        elif is_user_manager(data, guild_id, user):
-            reminders = get_user_reminders(data, user.id, guild_id)
-            text = "\n".join(
-                f"[{i}] {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
-                for i, r in enumerate(reminders, start=1)
-            )
-            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed THEIR reminders (User Manager)")
-        else:
-            reminders = get_user_reminders(data, user.id, guild_id)
-            text = "\n".join(
-                f"[{i}] {r['message']} (⏰ {r['time']}, {r.get('delivery','dm')})"
-                for i, r in enumerate(reminders, start=1)
-            )
-            logger.info(f"[GUILD {interaction.guild.name} ({guild_id})] {user} listed THEIR reminders")
-
-        if not reminders:
-            await interaction.response.send_message("📭 No reminders found.")
-        else:
-            await interaction.response.send_message(f"📋 Reminders:\n{text}")
-
-    @app_commands.command(name="remindercancel", description="Cancel a reminder")
-    async def remindercancel(self, interaction: discord.Interaction, index: int):
-        user = interaction.user
-        guild_id = interaction.guild_id
-
-        if is_reminder_admin(data, guild_id, user):
-            reminders = get_all_reminders(data, guild_id)
-        elif is_user_manager(data, guild_id, user):
-            reminders = get_user_reminders(data, user.id, guild_id)
-        else:
-            reminders = get_user_reminders(data, user.id, guild_id)
-
-        if not reminders:
-            await interaction.response.send_message("❌ No reminders found.")
-            return
-
-        if index < 1 or index > len(reminders):
-            await interaction.response.send_message("⚠️ Invalid reminder index.")
-            return
-
-        reminder = reminders[index - 1]
-        remove_reminder(data, reminder)
-
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({guild_id})] "
-            f"{user} cancelled reminder '{reminder['message']}' "
-            f"(⏰ {reminder['time']}) from user {reminder['user_id']}"
-        )
-
-        await interaction.response.send_message(
-            f"✅ Reminder cancelled: {reminder['message']} (⏰ {reminder['time']})"
-        )
-
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Reminder(bot))
