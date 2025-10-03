@@ -1,16 +1,50 @@
-### Readme File of reminderbot
-## General info:
-This is test ver. 08 of reminderbot which is now a test bot that makes reminders, warning it is a <ins>**TEST BUILD**</ins>, so if you want a working version, please go to the main branch, it will allways be working.  
-  
-Todoist: https://app.todoist.com/app/task/reminderbot-totallity-6crrqjjG8v8xpXhp  
-  
-## Instructions:  
-Open terminal and type: "python bot.py" in directory reminder bot, which is top-level.
-This software uses the license Attribution-NonCommercial 4.0 International
-Also, no the token in commits doesn't work, it is now reset.  
+# 📌 ReminderBot
 
-## My current plans:
-# 📝 To-Do / Roadmap
+### General Info
+This is **Test Version 0.0.8** of ReminderBot.  
+⚠️ **Warning:** This is a <ins>**TEST BUILD**</ins>. If you want a stable version, please check the **main branch**, which always contains a working release.  
+
+ReminderBot is a Discord bot designed to help users and communities schedule and manage reminders.  
+It supports **multiple delivery modes** (DMs, text channels, forum posts) and has a flexible **role-based permission system**:  
+- **Admins** → Manage everything (users, roles, all reminders)  
+- **User Managers** → Moderate user reminders and set guild defaults  
+- **Users** → Manage their own reminders privately  
+
+🔗 Development is tracked in Todoist: [ReminderBot Project Board](https://app.todoist.com/app/task/reminderbot-totallity-6crrqjjG8v8xpXhp)  
+
+---
+
+### Features (Current)
+- Create reminders with custom delivery (DM, channel, forum, or both)  
+- List and cancel reminders with role-based permissions  
+- Logging of all actions per guild  
+- Missed reminders get delivered once the bot is back online  
+- Guild-separated data for privacy
+
+If you have any extra suggestions, please suggest them in discussions!  
+
+---
+
+### Instructions
+1. Open a terminal in the `reminderbot` root directory.  
+2. Run:  
+
+   ```bash
+   python bot.py
+3. Make sure your bot token is set (the one in past commits is reset and non-functional).
+
+📜 This project is licensed under Attribution-NonCommercial 4.0 International (CC BY-NC 4.0).
+
+### 💡 Suggestions & Contributions
+
+This project is still in active development, and feedback is welcome!
+If you have ideas for features, improvements, or notice bugs:
+- Open an Issue in the repository
+- Or create a Pull Request with your proposed changes
+
+Please keep in mind this branch is experimental, so features may change quickly.
+
+### My current plans:
 
 ## ✅ Completed
 - [x] `/reminder` command with delivery modes (`dm`, `channel`, `forum`, `both`)  
