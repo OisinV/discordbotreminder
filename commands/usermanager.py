@@ -1,86 +1,81 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
-import logging
-
 from storage import (
-    add_user_manager, remove_user_manager, list_user_managers, load_data,
-    data, is_reminder_admin
+    add_user_manager,
+    remove_user_manager,
+    add_admin_manager,
+    remove_admin_manager,
+    is_admin_manager,
+    is_user_manager,
+    get_guild_settings
 )
-
-logger = logging.getLogger("bot")
-data = load_data()
-
-
-def require_admin_manager(interaction: discord.Interaction) -> bool:
-    return is_reminder_admin(data, interaction.guild_id, interaction.user)
-
+from bot import data
 
 class UserManager(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
 
-    group = app_commands.Group(
-        name="usermanager",
-        description="User Manager commands (limited privileges)"
-    )
+    # --- Add user manager (admin only) ---
+    @commands.command(name="addusermanager")
+    async def add_user_manager_cmd(self, ctx, target: discord.Member | discord.Role):
+        """Add a user or role as User Manager (Admins only)."""
+        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+            return await ctx.send("❌ You don’t have permission to do this.")
 
-    @group.command(name="adduser", description="Add a user as User Manager")
-    @app_commands.check(require_admin_manager)
-    async def adduser(self, interaction: discord.Interaction, user: discord.User):
-        add_user_manager(data, interaction.guild_id, user.id, "user")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} added USER {user} as User Manager"
-        )
-        await interaction.response.send_message(f"✅ Added {user.mention} as User Manager")
+        add_user_manager(data, ctx.guild.id, target.id)
+        await ctx.send(f"✅ {target.mention if isinstance(target, discord.Member) else target.name} added as **User Manager**.")
 
-    @group.command(name="addrole", description="Add a role as User Manager")
-    @app_commands.check(require_admin_manager)
-    async def addrole(self, interaction: discord.Interaction, role: discord.Role):
-        add_user_manager(data, interaction.guild_id, role.id, "role")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} added ROLE {role} as User Manager"
-        )
-        await interaction.response.send_message(f"✅ Added role {role.mention} as User Manager")
+    # --- Remove user manager (admin only) ---
+    @commands.command(name="removeusermanager")
+    async def remove_user_manager_cmd(self, ctx, target: discord.Member | discord.Role):
+        """Remove a user or role from User Managers (Admins only)."""
+        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+            return await ctx.send("❌ You don’t have permission to do this.")
 
-    @group.command(name="removeuser", description="Remove a user from User Manager")
-    @app_commands.check(require_admin_manager)
-    async def removeuser(self, interaction: discord.Interaction, user: discord.User):
-        remove_user_manager(data, interaction.guild_id, user.id, "user")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} removed USER {user} from User Manager"
-        )
-        await interaction.response.send_message(f"❌ Removed {user.mention} from User Manager")
+        remove_user_manager(data, ctx.guild.id, target.id)
+        await ctx.send(f"🗑️ {target.mention if isinstance(target, discord.Member) else target.name} removed from **User Managers**.")
 
-    @group.command(name="removerole", description="Remove a role from User Manager")
-    @app_commands.check(require_admin_manager)
-    async def removerole(self, interaction: discord.Interaction, role: discord.Role):
-        remove_user_manager(data, interaction.guild_id, role.id, "role")
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} removed ROLE {role} from User Manager"
-        )
-        await interaction.response.send_message(f"❌ Removed role {role.mention} from User Manager")
+    # --- Add admin manager (admin only) ---
+    @commands.command(name="addadminmanager")
+    async def add_admin_manager_cmd(self, ctx, target: discord.Member | discord.Role):
+        """Add a user or role as Admin Manager (Admins only)."""
+        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+            return await ctx.send("❌ You don’t have permission to do this.")
 
-    @group.command(name="list", description="List User Managers for this server")
-    @app_commands.check(require_admin_manager)
-    async def list(self, interaction: discord.Interaction):
-        managers = list_user_managers(data, interaction.guild_id)
-        users = ", ".join(f"<@{uid}>" for uid in managers["users"]) or "None"
-        roles = ", ".join(f"<@&{rid}>" for rid in managers["roles"]) or "None"
+        add_admin_manager(data, ctx.guild.id, target.id)
+        await ctx.send(f"✅ {target.mention if isinstance(target, discord.Member) else target.name} added as **Admin Manager**.")
 
-        logger.info(
-            f"[GUILD {interaction.guild.name} ({interaction.guild_id})] "
-            f"{interaction.user} requested User Manager list"
-        )
+    # --- Remove admin manager (admin only) ---
+    @commands.command(name="removeadminmanager")
+    async def remove_admin_manager_cmd(self, ctx, target: discord.Member | discord.Role):
+        """Remove a user or role from Admin Managers (Admins only)."""
+        if not is_admin_manager(data, ctx.guild.id, ctx.author.id):
+            return await ctx.send("❌ You don’t have permission to do this.")
 
-        await interaction.response.send_message(
-            f"👑 User Managers:\n**Users:** {users}\n**Roles:** {roles}"
-        )
+        remove_admin_manager(data, ctx.guild.id, target.id)
+        await ctx.send(f"🗑️ {target.mention if isinstance(target, discord.Member) else target.name} removed from **Admin Managers**.")
+
+    # --- List managers ---
+    @commands.command(name="listmanagers")
+    async def list_managers(self, ctx):
+        """List current User Managers and Admin Managers for this guild."""
+        settings = get_guild_settings(data, ctx.guild.id)
+        user_managers = settings.get("user_managers", [])
+        admin_managers = settings.get("admin_managers", [])
+
+        def format_entries(entries):
+            result = []
+            for entry_id in entries:
+                obj = ctx.guild.get_member(entry_id) or ctx.guild.get_role(entry_id)
+                result.append(obj.mention if obj else f"`{entry_id}` (left server)")
+            return result or ["None"]
+
+        embed = discord.Embed(title=f"Manager Roles in {ctx.guild.name}", color=discord.Color.blue())
+        embed.add_field(name="👥 User Managers", value="\n".join(format_entries(user_managers)), inline=False)
+        embed.add_field(name="🛡️ Admin Managers", value="\n".join(format_entries(admin_managers)), inline=False)
+
+        await ctx.send(embed=embed)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot):
     await bot.add_cog(UserManager(bot))
