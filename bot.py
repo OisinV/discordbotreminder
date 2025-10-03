@@ -19,7 +19,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 data = load_data()
 
-
 async def reminder_loop():
     await bot.wait_until_ready()
     while not bot.is_closed():
@@ -28,15 +27,16 @@ async def reminder_loop():
             try:
                 guild = bot.get_guild(r["guild_id"])
                 delivery_mode = r.get("delivery", "dm")
+                target_mention = r.get("target_mention", f"<@{r['user_id']}>")
 
                 # DM delivery
-                if delivery_mode == "dm" or delivery_mode == "both":
+                if delivery_mode in ("dm", "both"):
                     user = await bot.fetch_user(r["user_id"])
                     if user:
                         await user.send(f"⏰ Reminder: {r['message']}")
                         logging.info(
                             f"[GUILD {guild.name if guild else 'Unknown'} ({r['guild_id']})] "
-                            f"Delivered reminder via DM to {user} ({r['user_id']}): '{r['message']}' "
+                            f"Delivered reminder via DM to {user}: '{r['message']}' "
                             f"(⏰ {r['time']})"
                         )
 
@@ -44,11 +44,10 @@ async def reminder_loop():
                 if delivery_mode in ("channel", "both") and "channel_id" in r:
                     channel = bot.get_channel(r["channel_id"])
                     if channel:
-                        await channel.send(f"⏰ Reminder for <@{r['user_id']}>: {r['message']}")
+                        await channel.send(f"⏰ Reminder for {target_mention}: {r['message']}")
                         logging.info(
                             f"[GUILD {guild.name if guild else 'Unknown'} ({r['guild_id']})] "
-                            f"Delivered reminder in channel #{channel} ({channel.id}) "
-                            f"for user {r['user_id']}: '{r['message']}' "
+                            f"Delivered reminder in channel #{channel} for {target_mention}: '{r['message']}' "
                             f"(⏰ {r['time']})"
                         )
 
@@ -60,24 +59,21 @@ async def reminder_loop():
                             name=f"Reminder: {r['message'][:50]}",
                             type=discord.ChannelType.public_thread
                         )
-                        await thread.send(f"<@{r['user_id']}> ⏰ {r['message']}")
+                        await thread.send(f"{target_mention} ⏰ {r['message']}")
                         logging.info(
                             f"[GUILD {guild.name if guild else 'Unknown'} ({r['guild_id']})] "
-                            f"Delivered reminder in forum {forum.name} ({forum.id}) "
-                            f"thread {thread.name} for user {r['user_id']}: '{r['message']}' "
+                            f"Delivered reminder in forum {forum.name} thread {thread.name} for {target_mention}: '{r['message']}' "
                             f"(⏰ {r['time']})"
                         )
 
             except Exception as e:
                 logging.error(
-                    f"[GUILD {r['guild_id']}] Failed to deliver reminder "
-                    f"to {r['user_id']}: {e}"
+                    f"[GUILD {r['guild_id']}] Failed to deliver reminder to {r['user_id']}: {e}"
                 )
 
             remove_reminder(data, r)
 
         await asyncio.sleep(60)
-
 
 @bot.event
 async def on_ready():
@@ -148,5 +144,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
