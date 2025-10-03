@@ -9,10 +9,7 @@ from storage import (
     load_data,
     get_user_reminders,
     remove_reminder,
-    get_all_reminders,
     TIMEZONE,
-    is_reminder_admin,
-    is_user_manager,
     get_guild_default_delivery
 )
 
@@ -23,6 +20,7 @@ class Reminder(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    # --- /reminder ---
     @app_commands.command(
         name="reminder",
         description="Set a reminder"
@@ -52,21 +50,23 @@ class Reminder(commands.Cog):
         guild_id = interaction.guild_id
         user = interaction.user
 
-        # Determine delivery
+        # Determine delivery mode
         delivery_mode = delivery.value if delivery else get_guild_default_delivery(data, guild_id)
         if not delivery_mode:
-            await interaction.response.send_message("❌ Please specify a delivery mode or set a guild default.")
+            await interaction.response.send_message(
+                "❌ Please specify a delivery mode or set a guild default."
+            )
             return
 
         # Determine target mention
-        mention_text = ""
-        if not target or target.lower() == "self":
-            mention_text = user.mention
-        else:
+        mention_text = user.mention
+        if target and target.lower() != "self":
             # Everyone / here ping
             if target.lower() in ["everyone", "here"]:
-                if not (interaction.user.guild_permissions.mention_everyone):
-                    await interaction.response.send_message("❌ You do not have permission to mention everyone/here.")
+                if not interaction.user.guild_permissions.mention_everyone:
+                    await interaction.response.send_message(
+                        "❌ You do not have permission to mention everyone/here."
+                    )
                     return
                 mention_text = f"@{target.lower()}"
             else:
@@ -78,13 +78,11 @@ class Reminder(commands.Cog):
                     # Try role
                     role = discord.utils.get(interaction.guild.roles, name=target)
                     if role:
-                        if not interaction.user.guild_permissions.mention_everyone:
-                            # optional: check for role mention permissions separately
-                            mention_text = role.mention
-                        else:
-                            mention_text = role.mention
+                        mention_text = role.mention
                     else:
-                        await interaction.response.send_message(f"❌ Target `{target}` not found as user or role.")
+                        await interaction.response.send_message(
+                            f"❌ Target `{target}` not found as user or role."
+                        )
                         return
 
         when = datetime.now(TIMEZONE) + timedelta(minutes=minutes)
@@ -106,6 +104,64 @@ class Reminder(commands.Cog):
             f"⏰ Reminder set for {when.strftime('%Y-%m-%d %H:%M:%S %Z')} "
             f"(Delivery: {delivery_mode}, Target: {mention_text})"
         )
+
+    # --- /reminderlist ---
+    @app_commands.command(
+        name="reminderlist",
+        description="List your active reminders"
+    )
+    async def reminderlist(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        user = interaction.user
+        reminders = get_user_reminders(data, user.id, guild_id)
+
+        if not reminders:
+            await interaction.response.send_message("📭 You have no active reminders.")
+            return
+
+        lines = []
+        for idx, r in enumerate(reminders, 1):
+            lines.append(
+                f"{idx}. {r['message']} (⏰ {r['time']}, Delivery: {r.get('delivery', 'dm')}, Target: {r.get('target_mention', user.mention)})"
+            )
+
+        chunk_size = 2000
+        text = "\n".join(lines)
+        if len(text) <= chunk_size:
+            await interaction.response.send_message(f"📋 Your reminders:\n{text}")
+        else:
+            # Split into multiple messages if too long
+            for i in range(0, len(lines), 20):
+                await interaction.user.send("📋 Your reminders:\n" + "\n".join(lines[i:i+20]))
+            await interaction.response.send_message("✅ Your reminders list was sent via DM (too long for chat).")
+
+    # --- /remindercancel ---
+    @app_commands.command(
+        name="remindercancel",
+        description="Cancel one of your active reminders"
+    )
+    @app_commands.describe(
+        index="Index of the reminder from /reminderlist to cancel"
+    )
+    async def remindercancel(self, interaction: discord.Interaction, index: int):
+        guild_id = interaction.guild_id
+        user = interaction.user
+        reminders = get_user_reminders(data, user.id, guild_id)
+
+        if not reminders:
+            await interaction.response.send_message("📭 You have no active reminders.")
+            return
+
+        if index < 1 or index > len(reminders):
+            await interaction.response.send_message("❌ Invalid reminder index.")
+            return
+
+        reminder_to_remove = reminders[index - 1]
+        remove_reminder(data, reminder_to_remove)
+        await interaction.response.send_message(
+            f"✅ Reminder cancelled: {reminder_to_remove['message']}"
+        )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Reminder(bot))
