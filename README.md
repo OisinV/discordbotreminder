@@ -69,6 +69,28 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and ha
 
 </details>
 
+<details>
+<summary><strong>🟠 Dev/Host Commands</strong></summary>
+
+|                     Command | Description                                                                                                        |
+| --------------------------: | ------------------------------------------------------------------------------------------------------------------ |
+|           `/backend update` | Send an update message to all guilds that have an update channel configured (hidden / dev-only).                   |
+|    `/backend guilddefaults` | Show the default reminder delivery mode for every guild the bot is in (hidden / dev-only).                         |
+|       `/backend listadmins` | List Admin users and Admin roles across all guilds (hidden / dev-only).                                            |
+| `/backend listusermanagers` | List User Manager users and roles across all guilds (hidden / dev-only).                                           |
+|           `/backend reload` | Reload settings and command cogs (re-import extensions); returns list of reloaded/failed cogs (hidden / dev-only). |
+|           `/backend status` | Return bot status (uptime, loaded cogs, reminder count, log level, etc.) (hidden / dev-only).                      |
+|    `/backend supportinvite` | DM all guild owners and configured Admins with the support server invite from `settings.json` (hidden / dev-only). |
+
+**Notes**
+
+* These commands are intended to run only in your configured **backend guild** and only by **dev IDs** in `settings.json`.
+* Most responses are ephemeral and/or logged to the backend log channel if configured.
+* `/backend update` uses the update channels saved in `data.json` (via `storage.py`) — make sure each guild has an update channel set for that guild if you want it to receive broadcast updates.
+* For those who are "This is a privacy risk!" and that kind of stuff, no, this is not a privacy risk since only the hosters/dev can access this info, and the hosters/dev can see it regardless of these commands.
+
+</details>
+
 ---
 
 ### Instructions
@@ -79,7 +101,8 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and ha
    ```bash
    python bot.py
    ```
-3. Make sure your bot token is set (tokens from previous commits are reset and non-functional).
+3. Make sure your settings are properly set (my sensitive information from previous commits are reset and non-functional).
+4. This is more or less a tip, but if you want to host this, please apply at the discord server, this is an easy backend server and has support for hosters/devs. https://discord.gg/CwSqSBzXPn
 
 📜 This project is licensed under Attribution-NonCommercial 4.0 International (CC BY-NC 4.0).
 
