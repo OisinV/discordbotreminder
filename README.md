@@ -143,6 +143,9 @@ Please keep in mind this branch is experimental, so features may change quickly.
 
   * Paginate `/reminderlist` for large lists
   * Show delivery mode, creator, and due time in a clean embed format
+* [x] **Manager Lists**
+
+  * Commands to show which roles/users are **Admins** vs **User Managers**
 
 ---
 
@@ -169,10 +172,6 @@ Please keep in mind this branch is experimental, so features may change quickly.
 
   * Handle deleted users, channels, roles
   * Fallback to DM if channel/forum is missing
-
-* [ ] **Manager Lists**
-
-  * Commands to show which roles/users are **Admins** vs **User Managers**
 
 ---
 
