@@ -1,7 +1,7 @@
 # 📌 ReminderBot
 
 ### General Info
-This is **Test Version 0.0.8** of ReminderBot.  
+This is **Test Version 0.8** of ReminderBot.  
 ⚠️ **Warning:** This is a <ins>**TEST BUILD**</ins>. If you want a stable version, please check the **main branch**, which always contains a working release.  
 
 ReminderBot is a Discord bot designed to help users and communities schedule and manage reminders.  
