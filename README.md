@@ -81,6 +81,7 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and ha
 |           `/backend reload` | Reload settings and command cogs (re-import extensions); returns list of reloaded/failed cogs (hidden / dev-only). |
 |           `/backend status` | Return bot status (uptime, loaded cogs, reminder count, log level, etc.) (hidden / dev-only).                      |
 |    `/backend supportinvite` | DM all guild owners and configured Admins with the support server invite from `settings.json` (hidden / dev-only). |
+|       `/backend restart` |  | Will do a soft restart on the bot and not stop the bot entirely (hidden / dev-only).                               |
 
 **Notes**
 
@@ -146,6 +147,7 @@ Please keep in mind this branch is experimental, so features may change quickly.
 * [x] **Manager Lists**
 
   * Commands to show which roles/users are **Admins** vs **User Managers**
+* [x] **Soft and Hard restart command**
 
 ---
 
