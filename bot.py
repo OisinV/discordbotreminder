@@ -6,6 +6,10 @@ import json
 import os
 import time
 from storage import load_data, get_due_reminders, remove_reminder
+from utility.util_backendlogger import setup_logger
+
+logger = setup_logger()
+logger.info("Bot starting...")
 
 # ============================================================
 # ------------------- Logging Setup ------------------------
@@ -27,11 +31,12 @@ SETTINGS_FILE = "settings.json"
 DEFAULT_SETTINGS = {
     "token": "YOUR_BOT_TOKEN_HERE",
     "test_guild_id": None,
-    "backend_guild_id": None,
+    "backend_guild_id": 1424002405913202700, # this is a default option, if you want your own server please replace this
     "backend_log_channel_id": None,
     "support_invite": "https://discord.gg/YOUR_DEFAULT_INVITE",
     "check_interval_seconds": 60,
-    "log_level": "INFO"
+    "log_level": "INFO",
+    "auto_restart": True
 }
 
 _last_settings_mtime = None
