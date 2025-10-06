@@ -63,7 +63,8 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and a 
 ---
 
 ### Known issues:
-* reminders do not get triggered
+
+None
 
 ---
 
