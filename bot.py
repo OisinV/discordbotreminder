@@ -12,7 +12,7 @@ logger = setup_logger()
 logger.info("Bot starting...")
 
 # ============================================================
-# ------------------- Logging Setup ------------------------
+# ------------------- Logging Setup --------------------------
 # ============================================================
 logging.basicConfig(
     level=logging.INFO,
@@ -24,14 +24,14 @@ logging.basicConfig(
 )
 
 # ============================================================
-# ------------------- Settings Management ------------------
+# ------------------- Settings Management --------------------
 # ============================================================
 SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
     "token": "YOUR_BOT_TOKEN_HERE",
     "test_guild_id": None,
-    "backend_guild_id": 1424002405913202700, # this is a default option, if you want your own server please replace this
+    "backend_guild_id": 1424002405913202700,  # Default backend guild ID
     "backend_log_channel_id": None,
     "support_invite": "https://discord.gg/YOUR_DEFAULT_INVITE",
     "check_interval_seconds": 60,
@@ -41,6 +41,7 @@ DEFAULT_SETTINGS = {
 
 _last_settings_mtime = None
 _settings_cache = None
+
 
 def load_settings(force=False):
     """
@@ -82,10 +83,11 @@ def load_settings(force=False):
 
     return settings
 
+
 settings = load_settings()
 
 # ============================================================
-# ------------------- Bot Setup -----------------------------
+# ------------------- Bot Setup ------------------------------
 # ============================================================
 intents = discord.Intents.default()
 intents.members = True
@@ -93,7 +95,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 data = load_data()
 
 # ============================================================
-# ------------------- Backend Logging -----------------------
+# ------------------- Backend Logging ------------------------
 # ============================================================
 async def backend_log(message: str):
     """Send a message to the backend log channel if configured."""
@@ -110,7 +112,7 @@ async def backend_log(message: str):
         logging.error(f"Failed to send backend log: {e}")
 
 # ============================================================
-# ------------------- Reminder Delivery ---------------------
+# ------------------- Reminder Delivery ----------------------
 # ============================================================
 async def deliver_reminder(r, missed=False):
     """Deliver a single reminder according to its delivery type."""
@@ -144,27 +146,37 @@ async def deliver_reminder(r, missed=False):
         logging.error(f"[GUILD {r.get('guild_id', '?')}] Failed to deliver {status.lower()}reminder: {e}")
 
 # ============================================================
-# ------------------- Reminder Loop -------------------------
+# ------------------- Reminder Loop --------------------------
 # ============================================================
 async def reminder_loop():
     """Background task to check for due reminders."""
     await bot.wait_until_ready()
     while not bot.is_closed():
         try:
+            # Load settings every cycle
             current_settings = load_settings()
             interval = current_settings.get("check_interval_seconds", 60)
 
+            # ✅ Reload data each cycle (fixes "reminders not firing" issue)
+            data = load_data()
+
+            # Get and deliver due reminders
             due = get_due_reminders(data)
+            print(f"[DEBUG] Reminder loop tick — {len(due)} due reminders found")
+
             for r in due:
                 await deliver_reminder(r)
                 remove_reminder(data, r)
+
         except Exception as e:
             await backend_log(f"💥 Reminder loop crashed: {e}")
             logging.exception(f"Error in reminder loop: {e}")
+
+        # Sleep between checks
         await asyncio.sleep(interval)
 
 # ============================================================
-# ------------------- Settings Watcher ----------------------
+# ------------------- Settings Watcher -----------------------
 # ============================================================
 async def settings_watcher():
     """Watch settings.json for changes and reload automatically."""
@@ -184,21 +196,23 @@ async def settings_watcher():
         await asyncio.sleep(10)
 
 # ============================================================
-# ------------------- Bot Events ----------------------------
+# ------------------- Bot Events -----------------------------
 # ============================================================
 @bot.event
 async def on_ready():
-    logging.info(f"Bot online as {bot.user}")
-    await backend_log(f"✅ Bot online as **{bot.user}**")
+    print(f"✅ Logged in as {bot.user}")
+
+    # Start background loops (only once)
+    if not any(t.get_name() == "reminder_loop" for t in asyncio.all_tasks()):
+        bot.loop.create_task(reminder_loop(), name="reminder_loop")
+        print("🔁 Reminder loop started")
+
+    bot.loop.create_task(settings_watcher())
 
     # Deliver missed reminders
     for r in get_due_reminders(data):
         await deliver_reminder(r, missed=True)
         remove_reminder(data, r)
-
-    # Start background loops
-    bot.loop.create_task(reminder_loop())
-    bot.loop.create_task(settings_watcher())
 
     # Command syncing
     TEST_GUILD_ID = settings.get("test_guild_id")
@@ -216,7 +230,7 @@ async def on_ready():
         logging.error(f"Failed to sync global commands: {e}")
 
 # ============================================================
-# ------------------- Load Extensions -----------------------
+# ------------------- Load Extensions ------------------------
 # ============================================================
 async def load_commands():
     """Load all command cogs."""
@@ -226,7 +240,7 @@ async def load_commands():
     await bot.load_extension("commands.backendcontrol")
 
 # ============================================================
-# ------------------- Main Entry ----------------------------
+# ------------------- Main Entry -----------------------------
 # ============================================================
 async def main():
     async with bot:
