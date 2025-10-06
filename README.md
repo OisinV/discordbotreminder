@@ -172,6 +172,8 @@ Open an **Issue** or create a **Pull Request** with proposed changes.
 #### 🔹 High Priority
 
 * Better storage/persistence (JSON → SQLite or hybrid)
+* Make the ground work for utilbot (do not complete)
+  * Util bot is a bot with multible "modules" that can all be toggeled with a command/dashboard, this will have reminderbot, roleranks, temprole access and many more!
 
 #### 🔸 Medium Priority
 
