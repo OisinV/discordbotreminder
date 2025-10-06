@@ -12,7 +12,9 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and a 
 * **User Managers** → Moderate user reminders, set guild defaults
 * **Users** → Manage their own reminders privately
 
-🔗 Development is tracked in Todoist: [ReminderBot Project Board](https://app.todoist.com/app/task/reminderbot-totallity-6crrqjjG8v8xpXhp)
+🔗 Development is tracked in Todoist: [ReminderBot Project Board](https://app.todoist.com/app/task/reminderbot-totallity-6crrqjjG8v8xpXhp)  
+  
+🔗 For if you do not want to host a bot yourself: [I have my own, it is nearly always online (atleast i try to)](https://discord.com/oauth2/authorize?client_id=1404821556215025764).  
 
 ---
 
