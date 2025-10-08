@@ -65,7 +65,7 @@ It supports **multiple delivery modes** (DMs, text channels, forum posts) and a 
 
 ### Known issues:
 
-None
+* The owner can't use a mention ping (perm issue)
 
 ---
 
